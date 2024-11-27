@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sped</title>
+    <link rel="icon" href="logo.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-image: url('background.jpg'); /* Verifique se o caminho da imagem está correto */
+            background-size: cover; 
+            background-position: center; 
+            background-repeat: no-repeat;
+            align-items: flex-start; /* Alinha tudo à esquerda */
+        }
+
+        .container {
+            width: 80%;
+            max-width: 1500px; 
+            background-color: rgba(255, 255, 255, 0.8); 
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .company {
+            display: grid; 
+            grid-template-columns: 2fr 2fr 1fr 1fr 2fr 1fr; 
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .company-name {
+            text-align: left;
+            max-width: 150px; 
+            /*overflow: hidden;*/
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .status-button {
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: white;
+            border: none;
+        }
+
+        .not-generated {
+            background-color: red;
+        }
+
+        .generated {
+            background-color: green;
+        }
+
+        .lock-button {
+            cursor: pointer;
+            padding: 5px;
+            font-size: 20px;
+            background-color: transparent;
+            border: none;
+        }
+
+        .locked {
+            color: gray;
+        }
+
+        .unlocked {
+            color: gold;
+        }
+
+        .actions {
+            margin: 20px 0;
+        }
+
+        .actions input, .actions button {
+            margin-right: 10px;
+        }
+
+        .search-container {
+            margin: 10px 0;
+        }
+
+        .search-container input {
+            padding: 8px;
+            font-size: 16px;
+            width: 250px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id="search" placeholder="Pesquisar Empresa" oninput="searchCompanies()">
+        </div>
+        <div id="companies"></div>
+    </div>
+
+    <div class="actions">
+        <input type="text" id="newCompany" placeholder="Nova Empresa">
+        <button onclick="addCompany()">Adicionar Empresa</button>
+        <button onclick="resetAllToNotGenerated()">Marcar Todas como Não Gerado</button>
+        <button onclick="toggleAllLocks()">Bloquear/Desbloquear Todos</button>
+    </div>
+
+    <script>
+        let companies = JSON.parse(localStorage.getItem("companies")) || [
+            { name: "Empresa A", generated: false, locked: false },
+            { name: "Empresa B", generated: false, locked: false },
+            { name: "Empresa C", generated: false, locked: false },
+            { name: "Empresa D", generated: false, locked: false }
+        ];
+
+        const companiesContainer = document.getElementById("companies");
+        const searchInput = document.getElementById("search");
+
+        let filteredCompanies = [...companies];  // Guardar a lista filtrada separada
+
+        function saveCompanies() {
+            localStorage.setItem("companies", JSON.stringify(companies));
+        }
+
+        function renderCompanies() {
+            companiesContainer.innerHTML = '';
+
+            filteredCompanies.sort((a, b) => a.name.localeCompare(b.name));
+
+            filteredCompanies.forEach((company, index) => {
+                const companyDiv = document.createElement("div");
+                companyDiv.className = "company";
+
+                const companyName = document.createElement("span");
+                companyName.className = "company-name";
+                companyName.innerText = company.name;
+
+                const lockButton = document.createElement("button");
+                lockButton.className = `lock-button ${company.locked ? "locked" : "unlocked"}`;
+                lockButton.innerText = company.locked ? "🔒" : "🔓";
+                lockButton.onclick = () => toggleLock(company);  // Passando o próprio objeto
+
+                const lockStatusText = document.createElement("span");
+                lockStatusText.innerText = company.locked ? "Não Liberado" : "Liberado";
+
+                const statusButton = document.createElement("button");
+                statusButton.className = "status-button";
+                statusButton.classList.add(company.generated ? "generated" : "not-generated");
+                statusButton.innerText = company.generated ? "Gerado" : "Não Gerado";
+                statusButton.onclick = () => toggleStatus(company);  // Passando o próprio objeto
+                statusButton.disabled = company.locked;
+
+                const editButton = document.createElement("button");
+                editButton.innerText = "Editar";
+                editButton.onclick = () => editCompany(company);
+
+                const deleteButton = document.createElement("button");
+                deleteButton.innerText = "Excluir";
+                deleteButton.onclick = () => deleteCompany(company);
+
+                companyDiv.appendChild(companyName);
+                companyDiv.appendChild(lockButton);
+                companyDiv.appendChild(lockStatusText);
+                companyDiv.appendChild(statusButton);
+                companyDiv.appendChild(editButton);
+                companyDiv.appendChild(deleteButton);
+                
+                companiesContainer.appendChild(companyDiv);
+            });
+        }
+
+        function toggleLock(company) {
+            company.locked = !company.locked;
+            saveCompanies();
+            renderCompanies(); // Re-renderiza após alteração
+        }
+
+        function toggleStatus(company) {
+            company.generated = !company.generated;
+            saveCompanies();
+            renderCompanies(); // Re-renderiza após alteração
+        }
+
+        function addCompany() {
+            const newCompanyName = document.getElementById("newCompany").value.trim();
+            if (newCompanyName) {
+                const newCompany = { name: newCompanyName, generated: false, locked: false };
+                companies.push(newCompany);
+                filteredCompanies.push(newCompany);  // Adiciona na lista filtrada também
+                saveCompanies();
+                document.getElementById("newCompany").value = '';
+                renderCompanies(); // Re-renderiza após adicionar
+            } else {
+                alert("Digite o nome da empresa para adicionar.");
+            }
+        }
+
+        function editCompany(company) {
+            const newName = prompt("Digite o novo nome da empresa:", company.name);
+            if (newName && newName.trim() !== "") {
+                company.name = newName.trim();
+                saveCompanies();
+                renderCompanies();  // Re-renderiza após edição
+            }
+        }
+
+        function deleteCompany(company) {
+            if (confirm(`Tem certeza de que deseja excluir a empresa "${company.name}"?`)) {
+                companies = companies.filter(c => c !== company);
+                filteredCompanies = filteredCompanies.filter(c => c !== company);  // Remove da lista filtrada também
+                saveCompanies();
+                renderCompanies();  // Re-renderiza após exclusão
+            }
+        }
+
+        function resetAllToNotGenerated() {
+            companies = companies.map(company => ({ ...company, generated: false }));
+            filteredCompanies = filteredCompanies.map(company => ({ ...company, generated: false }));
+            saveCompanies();
+            renderCompanies();  // Re-renderiza após resetar todos os status
+        }
+
+        function toggleAllLocks() {
+            const allLocked = companies.every(company => company.locked);
+            companies = companies.map(company => ({ ...company, locked: !allLocked }));
+            filteredCompanies = filteredCompanies.map(company => ({ ...company, locked: !allLocked }));
+            saveCompanies();
+            renderCompanies();  // Re-renderiza após bloquear/desbloquear todas as empresas
+        }
+
+        function searchCompanies() {
+            const searchTerm = searchInput.value.toLowerCase();
+            filteredCompanies = companies.filter(company =>
+                company.name.toLowerCase().includes(searchTerm)
+            );
+            renderCompanies();  // Atualiza a renderização com a lista filtrada
+        }
+
+        // Inicia com a renderização da lista completa
+        renderCompanies();
+
+    </script>
+</body>
+</html>
